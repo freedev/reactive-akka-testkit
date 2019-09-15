@@ -1,4 +1,4 @@
-name := "reactive" ++ "-" ++ "kvstore"
+name := "reactive" ++ "-" ++ "step1"
 
 scalaVersion := "2.11.12"
 
