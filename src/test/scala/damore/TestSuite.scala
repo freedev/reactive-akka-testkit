@@ -1,4 +1,4 @@
-package kvstore
+package damore
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit

@@ -1,4 +1,4 @@
-package kvstore
+package damore
 
 import akka.actor.{Actor, Props}
 import akka.event.Logging
@@ -36,15 +36,15 @@ class ActorB(actorCProps: Props) extends Actor {
     }
     case r:MessageA2B => {
       val client = context.sender()
-      implicit val timeout = Timeout(100.milliseconds)
+      implicit val timeout = Timeout(50.milliseconds)
       log.info("ActorB received message MessageA2B from client " + client)
       implicit val scheduler=context.system.scheduler
       val p = MessageB2C()
 
       RetrySupport.retry(() => {
         log.info("ActorB - sent message MessageB2C to ActorC " + actorC)
-        Patterns.ask(actorC, p, 100.millisecond)
-      }, 10, 100.millisecond)
+        Patterns.ask(actorC, p, 50.millisecond)
+      }, 10, 50.millisecond)
       .onSuccess({
         case p: MessageB2C_Ack => {
           log.info("ActorB - Received MessageB2C_Ack so now sending an MessageA2B_Ack to client " + client)

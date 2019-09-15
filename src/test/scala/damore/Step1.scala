@@ -1,11 +1,11 @@
 /**
  * Copyright (C) 2013-2015 Typesafe Inc. <http://www.typesafe.com>
  */
-package kvstore
+package damore
 
 import akka.actor.{Actor, Props}
 import akka.testkit.TestProbe
-import kvstore.ActorB._
+import damore.ActorB._
 import org.scalatest.{FunSuiteLike, Matchers}
 
 import scala.concurrent.duration._
