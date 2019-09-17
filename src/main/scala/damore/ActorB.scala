@@ -2,7 +2,7 @@ package damore
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
-import akka.pattern.{AskTimeoutException, Patterns}
+import akka.pattern.{AskTimeoutException, Patterns, RetrySupport}
 import akka.util.Timeout
 
 import scala.concurrent.Future
