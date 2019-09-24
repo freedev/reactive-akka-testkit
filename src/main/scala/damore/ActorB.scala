@@ -55,10 +55,10 @@ class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
   implicit val timeout = Timeout(4.seconds)
 
   def receive = {
-    case r:Status.Failure => {
-      log.info("ActorB - secondary received message: Status.Failure")
-      self ! MessageA2B()
-    }
+//    case r:Status.Failure => {
+//      log.info("ActorB - secondary received message: Status.Failure")
+//      self ! MessageA2B()
+//    }
     case r:MessageB2C_Ack => {
       log.info("ActorB - secondary received UNHANDLED message: MessageB2C_Ack")
     }
@@ -68,7 +68,6 @@ class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
 
       val actorChildB = context.actorOf(ActorChildB.props(self, actorC))
       val msg = StartChild()
-
       actorChildB ! msg
 
     }

@@ -23,29 +23,28 @@ class ActorChildB(actorB: ActorRef, actorC: ActorRef) extends Actor with ActorLo
 
   override def postRestart(reason: Throwable) {
     super.postRestart(reason)
-    log.info(s"Restarted because of ${reason.getMessage}")
+    log.info(s"ActorChildB - Restarted because of ${reason.getMessage}")
   }
 
   def receive = {
     case r:StartChild => {
-      log.info("received message " + r)
+      log.info("ActorChildB - received message " + r)
       val supervisor = context.sender()
       import scala.concurrent.ExecutionContext.Implicits.global
       implicit val scheduler=context.system.scheduler
       implicit val askTimeout = Timeout(50.millisecond)
-      //    log.info("ActorChildB - before preStart asking MessageB2C to actorC")
       val p = MessageB2C()
-      val future =  actorC ? p
-      //    log.info("ActorChildB - after preStart asking MessageB2C to actorC")
-      future recover {
-        case e: AskTimeoutException => {
-          log.info("Failure detected with AskTimeoutException")
-          supervisor ! Status.Failure(e)
-        }
-        case _ => {
-          log.info("Failure detected")
-        }
-      }
+      val future = actorC ? p map( _ => { MessageB2C_Ack() } ) pipeTo supervisor
+//      future recover {
+//        case e: AskTimeoutException => {
+//          log.info("ActorChildB - Failure detected with AskTimeoutException")
+//          throw new Exception("hello")
+////          supervisor ! Status.Failure(e)
+//        }
+//        case _ => {
+//          log.info("ActorChildB - Failure detected")
+//        }
+//      }
     }
 //    case r => {
 //      log.info("ActorChildB - received UNHANDLED message " + r)
@@ -53,7 +52,6 @@ class ActorChildB(actorB: ActorRef, actorC: ActorRef) extends Actor with ActorLo
   }
 
   private def sendMessage(o: Operation, retryN: Int, client : ActorRef) = {
-
 
 //     val future = Patterns.askWithReplyTo(actorC, actorRef -> o, 50)
 //
