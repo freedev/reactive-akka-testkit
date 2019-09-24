@@ -1,8 +1,9 @@
 package damore
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.event.Logging
-import akka.pattern.{AskTimeoutException, Patterns, RetrySupport}
+import akka.actor.SupervisorStrategy.{Restart, Stop}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status}
+import akka.pattern.ask
+import akka.pattern.{AskTimeoutException, Patterns, RetrySupport, ask}
 import akka.util.Timeout
 
 import scala.concurrent.Future
@@ -11,8 +12,10 @@ import scala.concurrent.duration._
 object ActorB {
 
   sealed trait Operation
+  case class StartChild() extends Operation
   case class MessageA2B() extends Operation
   case class MessageB2C() extends Operation
+  case class OperationRetry(o: Operation, n:Int) extends Operation
 
   sealed trait OperationReply
   case class MessageA2B_Ack() extends OperationReply
@@ -20,55 +23,53 @@ object ActorB {
 
   case class MessageB2C_Ack()  extends OperationReply
 
-  def props(persistenceProps: Props): Props = Props(new ActorB(persistenceProps))
+  def props(propsActorC: Props): Props = Props(classOf[ActorB], propsActorC)
 }
 
-class ActorB(actorCProps: Props) extends Actor {
+class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
   import ActorB._
   import context.dispatcher
 
-  val log = Logging(context.system, this)
+  val actorC = context.actorOf(propsActorC)
 
-  val actorC = context.actorOf(actorCProps)
-
-  def retry(actorRef: ActorRef, message: Any, maxAttempts: Int): Future[Any] = {
-     retry(actorRef, message, maxAttempts, 1)
-  }
-
-  def retry(actorRef: ActorRef, message: Any, maxAttempts: Int, attempt: Int): Future[Any] = {
-    log.info("ActorB - sent message MessageB2C to ActorC " + actorC)
-    val future = Patterns.ask(actorRef, message, 50.millisecond) recover {
-      case e: AskTimeoutException =>
-        if (attempt <= maxAttempts) retry(actorRef, message, maxAttempts, attempt + 1)
-        else None // Return default result according to your requirement, if actor is non-reachable.
+  // Restart the ActorChildB child if it throws AskTimeoutException
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: NullPointerException     => {
+      log.info("supervisorStrategy received NullPointerException")
+      Restart
     }
-    future
+    case _: AskTimeoutException      => {
+      log.info("supervisorStrategy received AskTimeoutException")
+      Restart
+    }
+    case _: Exception                => {
+      log.info("supervisorStrategy received Exception")
+      Restart
+    }
+    case x => {
+      log.info("supervisorStrategy received " + x)
+      Restart
+    }
   }
+
+  implicit val timeout = Timeout(4.seconds)
 
   def receive = {
+    case r:Status.Failure => {
+      log.info("ActorB - secondary received message: Status.Failure")
+      self ! MessageA2B()
+    }
     case r:MessageB2C_Ack => {
       log.info("ActorB - secondary received UNHANDLED message: MessageB2C_Ack")
     }
     case r:MessageA2B => {
       val client = context.sender()
-      implicit val timeout = Timeout(100.milliseconds)
       log.info("ActorB received message MessageA2B from client " + client)
-      implicit val scheduler=context.system.scheduler
-      val p = MessageB2C()
 
-      //Return a new future that will retry up to 10 times
-//      val retried = akka.pattern.retry(() => attempt(actorC), 10, 100 milliseconds)
+      val actorChildB = context.actorOf(ActorChildB.props(self, actorC))
+      val msg = StartChild()
 
-//      val retried = RetrySupport.retry(() => {
-//        log.info("ActorB - sent message MessageB2C to ActorC " + actorC)
-//        Patterns.ask(actorC, p, 50.millisecond)
-//      }, 6, 0.millisecond)
-      retry(actorC, p, 10) onSuccess({
-        case p: MessageB2C_Ack => {
-          log.info("ActorB - Received MessageB2C_Ack so now sending an MessageA2B_Ack to client " + client)
-          client ! MessageA2B_Ack()
-        }
-      })
+      actorChildB ! msg
 
     }
     case r => {
