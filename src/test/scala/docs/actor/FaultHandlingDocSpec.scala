@@ -2,15 +2,19 @@ package docs.actor
 
 // From Akka Documentation
 
-import language.postfixOps
-import akka.actor.{ ActorRef, ActorSystem, Props, Terminated }
-import FaultHandlingDocSpec._
-import org.scalatest.{ WordSpec, WordSpecLike }
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, Props, Terminated}
+import akka.event.LoggingReceive
+import docs.actor.FaultHandlingDocSpec._
+
+import scala.language.postfixOps
 
 //#testkit
-import com.typesafe.config.{ Config, ConfigFactory }
-import org.scalatest.{ BeforeAndAfterAll, Matchers }
-import akka.testkit.{ EventFilter, ImplicitSender, TestActors, TestKit }
+import akka.testkit.{EventFilter, ImplicitSender, TestKit}
+import com.typesafe.config.{Config, ConfigFactory}
+
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.WordSpecLike
+import org.scalatest.Matchers
 
 //#testkit
 object FaultHandlingDocSpec {
@@ -23,19 +27,36 @@ object FaultHandlingDocSpec {
     //#strategy
     import akka.actor.OneForOneStrategy
     import akka.actor.SupervisorStrategy._
+
     import scala.concurrent.duration._
 
     override val supervisorStrategy =
       OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
-        case _: ArithmeticException      => Resume
-        case _: NullPointerException     => Restart
-        case _: IllegalArgumentException => Stop
-        case _: Exception                => Escalate
+        case _: ArithmeticException      => {
+          println("Supervisor - supervisorStrategy received ArithmeticException - Resume")
+          Resume
+        }
+        case _: NullPointerException     => {
+          println("Supervisor - supervisorStrategy received NullPointerException - Restart")
+          Restart
+        }
+        case _: IllegalArgumentException => {
+          println("Supervisor - supervisorStrategy received IllegalArgumentException - Stop")
+          Stop
+        }
+        case x: Exception                => {
+          println("Supervisor - supervisorStrategy received Exception " + x + " - Escalate")
+          Escalate
+        }
       }
     //#strategy
 
-    def receive = {
-      case p: Props => sender() ! context.actorOf(p)
+    def receive = LoggingReceive {
+      case p: Props => {
+        val msg = context.actorOf(p)
+        println("Supervisor - Received message from " + sender() + " with msg " + msg)
+        sender() ! msg
+      }
     }
   }
   //#supervisor
@@ -45,22 +66,41 @@ object FaultHandlingDocSpec {
     //#strategy2
     import akka.actor.OneForOneStrategy
     import akka.actor.SupervisorStrategy._
+
     import scala.concurrent.duration._
 
     override val supervisorStrategy =
       OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
-        case _: ArithmeticException      => Resume
-        case _: NullPointerException     => Restart
-        case _: IllegalArgumentException => Stop
-        case _: Exception                => Escalate
+        case _: ArithmeticException      => {
+          println("Supervisor2 - supervisorStrategy received ArithmeticException - Resume")
+          Resume
+        }
+        case _: NullPointerException     => {
+          println("Supervisor2 - supervisorStrategy received NullPointerException - Restart")
+          Restart
+        }
+        case _: IllegalArgumentException => {
+          println("Supervisor2 - supervisorStrategy received IllegalArgumentException - Stop")
+          Stop
+        }
+        case x: Exception                => {
+          println("Supervisor2 - supervisorStrategy received Exception " + x + " - Escalate")
+          Escalate
+        }
       }
     //#strategy2
 
-    def receive = {
-      case p: Props => sender() ! context.actorOf(p)
+    def receive = LoggingReceive {
+      case p: Props => {
+        val msg = context.actorOf(p)
+        println("Supervisor2 - Received message from " + sender() + " with msg " + msg)
+        sender() ! msg
+      }
     }
     // override default to kill all children during restart
-    override def preRestart(cause: Throwable, msg: Option[Any]): Unit = {}
+    override def preRestart(cause: Throwable, msg: Option[Any]): Unit = {
+      println("Supervisor2 - preRestart - override default to kill all children during restart")
+    }
   }
   //#supervisor2
 
@@ -68,13 +108,19 @@ object FaultHandlingDocSpec {
     //#default-strategy-fallback
     import akka.actor.OneForOneStrategy
     import akka.actor.SupervisorStrategy._
+
     import scala.concurrent.duration._
 
     override val supervisorStrategy =
       OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
-        case _: ArithmeticException => Resume
-        case t =>
+        case _: ArithmeticException => {
+          println("Supervisor3 - supervisorStrategy received ArithmeticException - Resume")
+          Resume
+        }
+        case t => {
+          println("Supervisor3 - supervisorStrategy received " + t + " - Escalate")
           super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+        }
       }
     //#default-strategy-fallback
 
@@ -82,12 +128,22 @@ object FaultHandlingDocSpec {
   }
 
   //#child
-  class Child extends Actor {
+  class Child extends Actor with ActorLogging {
     var state = 0
-    def receive = {
-      case ex: Exception => throw ex
-      case x: Int        => state = x
-      case "get"         => sender() ! state
+    println("Child - Started with state " + state)
+    def receive = LoggingReceive {
+      case ex: Exception => {
+        println("Child - received Exception with state " + state)
+        throw ex
+      }
+      case x: Int        => {
+        state = x
+        println("Child - received new state " + state)
+      }
+      case "get"         => {
+        println("Child - sender asked for state " + state)
+        sender() ! state
+      }
     }
   }
   //#child

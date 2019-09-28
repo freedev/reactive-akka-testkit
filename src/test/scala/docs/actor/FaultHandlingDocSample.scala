@@ -128,7 +128,7 @@ object CounterService {
   * counter. Replies with `CurrentCount` when it is asked for `CurrentCount`.
   * `CounterService` supervise `Storage` and `Counter`.
   */
-class CounterService extends Actor {
+class CounterService extends Actor with ActorLogging {
   import CounterService._
   import Counter._
   import Storage._
@@ -136,7 +136,10 @@ class CounterService extends Actor {
   // Restart the storage child when StorageException is thrown.
   // After 3 restarts within 5 seconds it will be stopped.
   override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 3, withinTimeRange = 5 seconds) {
-    case _: Storage.StorageException => Restart
+    case _: Storage.StorageException => {
+      log.info("Received Storage.StorageException - Restart")
+      Restart
+    }
   }
 
   val key = self.path.name

@@ -21,9 +21,9 @@ trait Step1
 
 
   test("expectNoMessage-case: actorB retries MessageB2C every 100 milliseconds") {
-    val actorA = TestProbe()
-    val actorC = TestProbe()
-    val actorB = system.actorOf(ActorB.props(Props(classOf[TestRefWrappingActor], actorC)), "actorb-step1")
+    val actorA = TestProbe("Actor-A")
+    val actorC = TestProbe("Actor-C")
+    val actorB = system.actorOf(ActorB.props(Props(classOf[TestRefWrappingActor], actorC)), "Actor-B")
 
     actorA.send(actorB, MessageA2B())
 
