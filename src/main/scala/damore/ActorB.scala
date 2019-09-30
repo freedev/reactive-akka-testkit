@@ -1,14 +1,8 @@
 package damore
 
-import akka.actor.SupervisorStrategy.{Restart, Stop}
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props, Status}
 import akka.event.LoggingReceive
-import akka.pattern.ask
-import akka.pattern.{AskTimeoutException, Patterns, RetrySupport, ask}
 import akka.util.Timeout
-
-import scala.concurrent.Future
-import scala.concurrent.duration._
 
 object ActorB {
 
@@ -30,23 +24,18 @@ object ActorB {
 class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
   import ActorB._
 
-  var answerReceived = false
   import akka.actor.OneForOneStrategy
   import akka.actor.SupervisorStrategy._
   import scala.concurrent.duration._
 
   override val supervisorStrategy = OneForOneStrategy() {
-      case _: AskTimeoutException      => {
-        log.info("ActorB - supervisorStrategy caught AskTimeoutException - Resume")
+      case _: MyRetryTimeoutException      => {
+        log.info("ActorB - supervisorStrategy caught MyRetryTimeoutException - Resume")
         Stop
       }
       case _: ActorInitializationException     => {
         log.info("ActorB - supervisorStrategy caught ActorInitializationException - Restart")
-        if (!answerReceived) {
-          Restart
-        } else {
           Stop
-        }
       }
       case e: Exception                => {
         log.info("ActorB - supervisorStrategy caught Exception " + e +" - Escalate")
@@ -64,7 +53,6 @@ class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
   def receive = LoggingReceive {
     case r:MessageB2C_Ack => {
       log.info("ActorB - secondary received message: MessageB2C_Ack")
-      answerReceived = true
       client.foreach(c => { c ! MessageA2B_Ack() })
     }
     case r:MessageA2B => {

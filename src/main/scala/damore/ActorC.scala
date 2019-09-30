@@ -1,13 +1,7 @@
 package damore
 
-import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Status}
+import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingReceive
-import akka.pattern.AskTimeoutException
-import akka.util.Timeout
-
-import scala.concurrent.duration._
-
 
 class ActorC() extends Actor  with ActorLogging {
   import ActorB._

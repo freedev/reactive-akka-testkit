@@ -1,8 +1,7 @@
 package damore
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import akka.event.LoggingReceive
-import akka.pattern.{AskTimeoutException}
 
 import scala.concurrent.duration._
 
@@ -10,15 +9,23 @@ object ActorChildB {
   def props(parentActor:ActorRef, dest: ActorRef, msg : Any): Props = Props(classOf[ActorChildB], parentActor, dest, msg)
 }
 
+class MyRetryTimeoutException(msg:String) extends Exception(msg)
+
 class ActorChildB(parentActor:ActorRef, dest:ActorRef, msg:Any) extends Actor with ActorLogging {
   import ActorB._
 
-  import scala.concurrent.ExecutionContext.Implicits.global
-  import scala.language.postfixOps
 
   log.info(s"ActorChildB - Started because of ActorB")
 
+  var cancellableSchedule : Option[Cancellable] = None
+
+  var counter = 0
   var maxCounter = 10
+
+  override def postStop(): Unit = {
+    cancellableSchedule.foreach(c => c.cancel())
+    super.postStop()
+  }
 
   override def preStart(): Unit = {
     log.info("ActorChildB - preStart")
@@ -43,20 +50,20 @@ class ActorChildB(parentActor:ActorRef, dest:ActorRef, msg:Any) extends Actor wi
    }
 
   private def sendScheduledMessage(): Unit = {
-    context.system.scheduler.scheduleOnce(0 milliseconds){
-      sendMessage(0)
-    }
+    import scala.concurrent.ExecutionContext.Implicits.global
+    import scala.language.postfixOps
+    cancellableSchedule =  Option(context.system.scheduler.schedule(0 milliseconds, 50 millisecond){
+      sendMessage()
+    })
   }
 
-   private def sendMessage(counter:Int): Unit = {
+   private def sendMessage(): Unit = {
       log.info("ActorChildB - sendMessage " + msg.getClass.getName + " to " + dest)
       if (counter < maxCounter) {
         dest ! msg
-        context.system.scheduler.scheduleOnce(50 milliseconds){
-          sendMessage(counter + 1)
-        }
+        counter = counter + 1
       } else  {
-        throw new AskTimeoutException("Fine")
+        throw new MyRetryTimeoutException("Fine")
       }
    }
 }
