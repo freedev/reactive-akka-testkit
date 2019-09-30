@@ -5,9 +5,6 @@ import akka.event.LoggingReceive
 import akka.pattern.{AskTimeoutException, Patterns, PipeToSupport, ask}
 
 import scala.concurrent.duration._
-import akka.util.Timeout
-
-import scala.concurrent.Future
 
 object ActorChildB {
   def props(parentActor:ActorRef, dest: ActorRef, msg : Any): Props = Props(classOf[ActorChildB], parentActor, dest, msg)
@@ -33,7 +30,6 @@ class ActorChildB(parentActor:ActorRef, dest:ActorRef, msg:Any) extends Actor wi
     log.info(s"ActorChildB - Restarted because of ${reason.getMessage}")
   }
 
-  @throws(classOf[AskTimeoutException])
   def receive = LoggingReceive {
     case r:MessageB2C_Ack => {
       log.info("ActorChildB - Received MessageB2C_Ack from " + sender())
