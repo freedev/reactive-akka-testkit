@@ -38,7 +38,6 @@ class ActorChildB(parentActor:ActorRef, dest:ActorRef, msg:Any) extends Actor wi
     }
     case r:SendMessage => {
       log.info("ActorChildB - Received SendMessage from " + sender())
-  //      sendMessage()
         sendScheduledMessage
       }
    }
