@@ -6,16 +6,14 @@ import akka.util.Timeout
 
 object ActorB {
 
+  case class TimerRetry()
+
   sealed trait Operation
-  case class SendMessage() extends Operation
   case class MessageA2B() extends Operation
   case class MessageB2C() extends Operation
-  case class OperationRetry(o: Operation, n:Int) extends Operation
 
   sealed trait OperationReply
   case class MessageA2B_Ack() extends OperationReply
-  case class MessageA2B_Failed() extends OperationReply
-
   case class MessageB2C_Ack()  extends OperationReply
 
   def props(propsActorC: Props): Props = Props(classOf[ActorB], propsActorC)
@@ -59,9 +57,7 @@ class ActorB(propsActorC: Props) extends Actor  with ActorLogging {
       client = Some(context.sender())
       log.info("ActorB received message MessageA2B from client " + client)
 
-      val msg = MessageB2C()
-      val actorChildB = context.actorOf(Props(classOf[ActorChildB], self, actorC, msg), "actorChildB")
-      actorChildB ! SendMessage()
+      val actorChildB = context.actorOf(Props(classOf[ActorChildB], actorC, MessageB2C(), 1L))
     }
     case r => {
       log.info("ActorB - received UNHANDLED message " + r)
